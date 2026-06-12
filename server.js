@@ -5,13 +5,13 @@ const path = require('path');
 const app = express();
 const PORT = 3030;
 
-// Disen Trikk – NSR:StopPlace:58305
-const STOP_ID = 'NSR:StopPlace:58305';
+// Default stop (Disen Tram – NSR:StopPlace:58305)
+const DEFAULT_STOP_ID = 'NSR:StopPlace:58305';
 const ENTUR_URL = 'https://api.entur.io/journey-planner/v3/graphql';
 
-const QUERY = `
+const buildQuery = (stopId) => `
 {
-  stopPlace(id: "${STOP_ID}") {
+  stopPlace(id: "${stopId}") {
     name
     estimatedCalls(timeRange: 72000, numberOfDepartures: 10) {
       expectedArrivalTime
@@ -30,13 +30,16 @@ const QUERY = `
 
 app.get('/api/departures', async (req, res) => {
   try {
+    const stopId = req.query.stopId || DEFAULT_STOP_ID;
+    const query = buildQuery(stopId);
+
     const response = await fetch(ENTUR_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'ET-Client-Name': 'disen-display-homepi',
       },
-      body: JSON.stringify({ query: QUERY }),
+      body: JSON.stringify({ query }),
     });
     const data = await response.json();
     const calls = data?.data?.stopPlace?.estimatedCalls ?? [];

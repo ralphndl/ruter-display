@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="no">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Disen – avganger</title>
+<title>Ruter Display – Departures</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -15,6 +15,12 @@
     display: flex;
     flex-direction: column;
     padding: 2.5rem 3rem;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  body.light {
+    background: #ffffff;
+    color: #000000;
   }
 
   header {
@@ -26,11 +32,19 @@
     padding-bottom: 1.2rem;
   }
 
+  body.light header {
+    border-bottom-color: #cccccc;
+  }
+
   #stop-name {
     font-size: 2rem;
     font-weight: 500;
     letter-spacing: -0.5px;
     color: #f0ede8;
+  }
+
+  body.light #stop-name {
+    color: #000000;
   }
 
   #clock {
@@ -39,6 +53,10 @@
     letter-spacing: 2px;
     color: #f0ede8;
     font-variant-numeric: tabular-nums;
+  }
+
+  body.light #clock {
+    color: #000000;
   }
 
   #departures {
@@ -56,9 +74,38 @@
     border-radius: 10px;
     background: #14141c;
     gap: 1rem;
+    transition: background 0.3s;
   }
 
   .row.soon { background: #191520; }
+
+  body.light .row {
+    background: #f0f0f0;
+    color: #000000;
+  }
+
+  body.light .row.soon {
+    background: #e8e8e8;
+  }
+
+  #theme-toggle {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background 0.3s;
+  }
+
+  #theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  body.light #theme-toggle:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
 
   .line-badge {
     display: inline-flex;
@@ -75,10 +122,16 @@
   .line-12 { background: #0057a8; color: #fff; }
   .line-other { background: #2a2a35; color: #f0ede8; }
 
+  body.light .line-other { background: #d0d0d0; color: #1a1a1a; }
+
   .destination {
     font-size: 1.5rem;
     font-weight: 400;
     color: #f0ede8;
+  }
+
+  body.light .destination {
+    color: #000000;
   }
 
   .abs-time {
@@ -87,6 +140,10 @@
     color: #a09c95;
     text-align: right;
     font-variant-numeric: tabular-nums;
+  }
+
+  body.light .abs-time {
+    color: #666666;
   }
 
   .rel-time {
@@ -100,6 +157,10 @@
   .rel-soon { color: #f0ede8; }
   .rel-later { color: #6a6870; }
 
+  body.light .rel-now  { color: #d4a800; }
+  body.light .rel-soon { color: #000000; }
+  body.light .rel-later { color: #999999; }
+
   .realtime-dot {
     display: inline-block;
     width: 7px; height: 7px;
@@ -107,6 +168,7 @@
     background: #3ecf6e;
     margin-left: 6px;
     vertical-align: middle;
+    box-shadow: 0 0 4px rgba(62, 207, 110, 0.5);
   }
 
   #status {
@@ -115,6 +177,11 @@
     font-size: 0.85rem;
     color: #3a3840;
     text-align: right;
+    transition: color 0.3s;
+  }
+
+  body.light #status {
+    color: #999999;
   }
 
   .error-msg {
@@ -128,11 +195,14 @@
 
 <header>
   <span id="stop-name">Disen</span>
-  <span id="clock">--:--</span>
+  <div style="display: flex; align-items: center; gap: 1rem;">
+    <span id="clock">--:--</span>
+    <button id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+  </div>
 </header>
 
-<div id="departures"><p class="error-msg">Laster avganger…</p></div>
-<div id="status">Oppdateres hvert 30. sek</div>
+<div id="departures"><p class="error-msg">Loading departures...</p></div>
+<div id="status">Updates every 30 sec</div>
 
 <script>
 function updateClock() {
@@ -141,7 +211,7 @@ function updateClock() {
 }
 
 function relLabel(min) {
-  if (min <= 0) return { text: 'Nå', cls: 'rel-now' };
+  if (min <= 0) return { text: 'Now', cls: 'rel-now' };
   if (min === 1) return { text: '1 min', cls: 'rel-now' };
   if (min <= 4) return { text: min + ' min', cls: 'rel-now' };
   if (min <= 10) return { text: min + ' min', cls: 'rel-soon' };
@@ -156,7 +226,17 @@ function lineClass(code) {
 
 async function fetchDepartures() {
   try {
-    const res = await fetch('/api/departures');
+    const params = new URLSearchParams(window.location.search);
+    const stopId = params.get('stopId');
+
+    if (!stopId) {
+      document.getElementById('departures').innerHTML =
+        '<p class="error-msg">Please set a stopId parameter in the URL<br><br>Example:<br>?stopId=NSR:StopPlace:58305</p>';
+      return;
+    }
+
+    const url = `/api/departures?stopId=${encodeURIComponent(stopId)}`;
+    const res = await fetch(url);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
@@ -164,14 +244,14 @@ async function fetchDepartures() {
 
     const container = document.getElementById('departures');
     if (!data.departures.length) {
-      container.innerHTML = '<p class="error-msg">Ingen avganger funnet</p>';
+      container.innerHTML = '<p class="error-msg">No departures found</p>';
       return;
     }
 
     container.innerHTML = data.departures.slice(0, 7).map(d => {
       const rel = relLabel(d.diffMin);
       const soon = d.diffMin <= 4;
-      const rt = d.realtime ? '<span class="realtime-dot" title="Sanntid"></span>' : '';
+      const rt = d.realtime ? '<span class="realtime-dot" title="Realtime"></span>' : '';
       return `
         <div class="row${soon ? ' soon' : ''}">
           <div><span class="line-badge ${lineClass(d.line)}">${d.line}</span></div>
@@ -182,13 +262,27 @@ async function fetchDepartures() {
     }).join('');
 
     document.getElementById('status').textContent =
-      'Oppdatert ' + new Date().toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      'Updated ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   } catch (e) {
     document.getElementById('departures').innerHTML =
-      `<p class="error-msg">Kunne ikke hente avganger: ${e.message}</p>`;
+      `<p class="error-msg">Could not fetch departures: ${e.message}</p>`;
   }
 }
+
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('theme') || 'dark';
+if (savedTheme === 'light') {
+  document.body.classList.add('light');
+  themeToggle.textContent = '☀️';
+}
+
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  themeToggle.textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+});
 
 updateClock();
 setInterval(updateClock, 10000);

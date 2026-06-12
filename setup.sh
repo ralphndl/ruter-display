@@ -1,40 +1,43 @@
 #!/bin/bash
-set -e
 
-echo "🚀 Disen Display Setup für Raspberry Pi"
+# Setup script for Ruter Display
+# Run this on a fresh Raspberry Pi installation
 
-# Node.js und npm prüfen
+echo "🚀 Setting up Ruter Display..."
+echo ""
+
+# Check if Node.js is installed
 if ! command -v node &> /dev/null; then
-    echo "📦 Installiere Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+  echo "❌ Node.js is not installed"
+  echo "Please install Node.js first:"
+  echo "  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+  echo "  sudo apt-get install -y nodejs"
+  exit 1
 fi
 
-echo "✅ Node.js $(node -v) gefunden"
+echo "✓ Node.js $(node --version) found"
+echo "✓ npm $(npm --version) found"
+echo ""
 
-# Dependencies installieren
-echo "📦 Installiere Dependencies..."
+# Install dependencies
+echo "📦 Installing dependencies..."
 npm install
-
-# PM2 installieren (global)
-echo "📦 Installiere PM2..."
-sudo npm install -g pm2
-
-# App mit PM2 starten
-echo "🚀 Starte Disen Display..."
-pm2 start server.js --name "disen-display"
-
-# PM2 beim Boot starten
-echo "⚙️ Konfiguriere Auto-Start..."
-pm2 startup | grep sudo | bash || true
-pm2 save
-
+echo "✓ Dependencies installed"
 echo ""
-echo "✅ Fertig! Disen Display läuft nun auf:"
-echo "   http://localhost:3030"
+
+# Clean workspace
+echo "🧹 Cleaning workspace..."
+./clean.sh
 echo ""
-echo "PM2 Befehle:"
-echo "   pm2 list              – Zeige Status"
-echo "   pm2 logs disen-display – Zeige Logs"
-echo "   pm2 stop disen-display – App stoppen"
-echo "   pm2 restart disen-display – Neustart"
+
+echo "✅ Setup complete!"
+echo ""
+echo "🎯 To start the server, run:"
+echo "   node server.js"
+echo ""
+echo "📱 Then access the app at:"
+echo "   http://localhost:3030?stopId=NSR:StopPlace:58305"
+echo ""
+echo "💡 Available stop IDs:"
+echo "   - Disen: NSR:StopPlace:58305"
+echo "   - Storo: NSR:StopPlace:58195"

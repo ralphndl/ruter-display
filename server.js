@@ -1,7 +1,15 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
-const puppeteer = require('puppeteer');
+
+let puppeteer = null;
+(async () => {
+  try {
+    puppeteer = await import('puppeteer');
+  } catch (err) {
+    // Puppeteer not available
+  }
+})();
 
 const app = express();
 const PORT = 3030;
@@ -73,40 +81,43 @@ app.get('/api/departures', async (req, res) => {
   }
 });
 
-app.get('/', async (req, res) => {
-  const screenshot = req.query.screenshot;
-
-  if (screenshot) {
-    let browser;
-    try {
-      const stopNumber = req.query.stopId || DEFAULT_STOP_NUMBER;
-      const width = parseInt(req.query.width) || 1024;
-      const height = parseInt(req.query.height) || 600;
-
-      browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-
-      const page = await browser.newPage();
-      await page.setViewport({ width, height });
-
-      const url = `http://localhost:${PORT}/?stopId=${stopNumber}`;
-      await page.goto(url, { waitUntil: 'networkidle2' });
-
-      const screenshotData = await page.screenshot({ type: 'png' });
-      res.type('image/png').send(screenshotData);
+app.get('/', (req, res) => {
+  if (req.query.screenshot) {
+    if (!puppeteer) {
+      res.status(503).json({ error: 'Screenshot feature not available. Install puppeteer: npm install puppeteer' });
       return;
-    } catch (err) {
-      console.error('Screenshot error:', err);
-      res.status(500).json({ error: 'Screenshot failed' });
-      return;
-    } finally {
-      if (browser) await browser.close();
     }
-  }
 
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    (async () => {
+      let browser;
+      try {
+        const stopNumber = req.query.stopId || DEFAULT_STOP_NUMBER;
+        const width = parseInt(req.query.width) || 1024;
+        const height = parseInt(req.query.height) || 600;
+
+        browser = await puppeteer.default.launch({
+          headless: 'new',
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+
+        const page = await browser.newPage();
+        await page.setViewport({ width, height });
+
+        const url = `http://localhost:${PORT}/?stopId=${stopNumber}`;
+        await page.goto(url, { waitUntil: 'networkidle2' });
+
+        const screenshotData = await page.screenshot({ type: 'png' });
+        res.type('image/png').send(screenshotData);
+      } catch (err) {
+        console.error('Screenshot error:', err);
+        res.status(500).json({ error: 'Screenshot failed' });
+      } finally {
+        if (browser) await browser.close();
+      }
+    })();
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'public')));

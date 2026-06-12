@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disen – avganger</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #f0ede8;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5rem 3rem;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid #2a2a35;
+    padding-bottom: 1.2rem;
+  }
+
+  #stop-name {
+    font-size: 2rem;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: #f0ede8;
+  }
+
+  #clock {
+    font-size: 2.8rem;
+    font-weight: 300;
+    letter-spacing: 2px;
+    color: #f0ede8;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #departures {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 80px 1fr 140px 100px;
+    align-items: center;
+    padding: 1.1rem 1.4rem;
+    border-radius: 10px;
+    background: #14141c;
+    gap: 1rem;
+  }
+
+  .row.soon { background: #191520; }
+
+  .line-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    font-weight: 500;
+  }
+
+  .line-11 { background: #c8102e; color: #fff; }
+  .line-12 { background: #0057a8; color: #fff; }
+  .line-other { background: #2a2a35; color: #f0ede8; }
+
+  .destination {
+    font-size: 1.5rem;
+    font-weight: 400;
+    color: #f0ede8;
+  }
+
+  .abs-time {
+    font-size: 1.6rem;
+    font-weight: 300;
+    color: #a09c95;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rel-time {
+    font-size: 1.5rem;
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rel-now  { color: #f0c040; }
+  .rel-soon { color: #f0ede8; }
+  .rel-later { color: #6a6870; }
+
+  .realtime-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #3ecf6e;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  #status {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    font-size: 0.85rem;
+    color: #3a3840;
+    text-align: right;
+  }
+
+  .error-msg {
+    font-size: 1.2rem;
+    color: #c8102e;
+    padding: 2rem 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span id="stop-name">Disen</span>
+  <span id="clock">--:--</span>
+</header>
+
+<div id="departures"><p class="error-msg">Laster avganger…</p></div>
+<div id="status">Oppdateres hvert 30. sek</div>
+
+<script>
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+}
+
+function relLabel(min) {
+  if (min <= 0) return { text: 'Nå', cls: 'rel-now' };
+  if (min === 1) return { text: '1 min', cls: 'rel-now' };
+  if (min <= 4) return { text: min + ' min', cls: 'rel-now' };
+  if (min <= 10) return { text: min + ' min', cls: 'rel-soon' };
+  return { text: min + ' min', cls: 'rel-later' };
+}
+
+function lineClass(code) {
+  if (code === '11') return 'line-11';
+  if (code === '12') return 'line-12';
+  return 'line-other';
+}
+
+async function fetchDepartures() {
+  try {
+    const res = await fetch('/api/departures');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('stop-name').textContent = data.stopName;
+
+    const container = document.getElementById('departures');
+    if (!data.departures.length) {
+      container.innerHTML = '<p class="error-msg">Ingen avganger funnet</p>';
+      return;
+    }
+
+    container.innerHTML = data.departures.slice(0, 7).map(d => {
+      const rel = relLabel(d.diffMin);
+      const soon = d.diffMin <= 4;
+      const rt = d.realtime ? '<span class="realtime-dot" title="Sanntid"></span>' : '';
+      return `
+        <div class="row${soon ? ' soon' : ''}">
+          <div><span class="line-badge ${lineClass(d.line)}">${d.line}</span></div>
+          <div class="destination">${d.destination}${rt}</div>
+          <div class="abs-time">${d.time}</div>
+          <div class="rel-time ${rel.cls}">${rel.text}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('status').textContent =
+      'Oppdatert ' + new Date().toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  } catch (e) {
+    document.getElementById('departures').innerHTML =
+      `<p class="error-msg">Kunne ikke hente avganger: ${e.message}</p>`;
+  }
+}
+
+updateClock();
+setInterval(updateClock, 10000);
+fetchDepartures();
+setInterval(fetchDepartures, 30000);
+</script>
+</body>
+</html>

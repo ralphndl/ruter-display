@@ -31,6 +31,7 @@ yarn-error.log*
 
 # OS
 .DS_Store
+.ds-store
 .DS_Store?
 ._*
 .Spotlight-V100

@@ -1,66 +1,62 @@
-# Disen Display
+# Ruter Display
 
-Echtzeit-Abfahrtsanzeige für die Trikk-Station Disen in Oslo.
+Real-time departure display for Oslo tram and metro stops.
 
-Zeigt die nächsten 7 Abfahrten mit:
-- Liniennummer (farbcodiert)
-- Ziel
-- Abfahrtszeit
-- Minuten bis Abfahrt
-- Echtzeit-Status
+Displays the next 7 departures with:
+- Line number (color-coded)
+- Destination
+- Departure time
+- Minutes until departure
+- Real-time status
 
-## Schnellstart auf Raspberry Pi
+## Quick Start on Raspberry Pi
 
-### 1. Code kopieren
+### 1. Copy code
 ```bash
-scp -r disen-display pi@raspberry.local:~/
+git clone <repo-url>
+cd ruter-display
 ```
 
-### 2. SSH auf Raspberry
+### 2. Run setup
 ```bash
-ssh pi@raspberry.local
-cd disen-display
 chmod +x setup.sh
 ./setup.sh
 ```
 
-### 3. Fertig!
-Die App läuft jetzt auf: **http://raspberry.local:3030**
+### 3. Start server
+```bash
+node server.js
+```
 
-Beim Booten startet sie automatisch (via PM2).
+The app runs on: **http://localhost:3030?stopId=NSR:StopPlace:58305**
 
-## Lokale Entwicklung (Mac/Linux)
+## Local Development (Mac/Linux)
 
 ```bash
 npm install
 node server.js
 ```
 
-Öffne: http://localhost:3030
+Open: http://localhost:3030?stopId=NSR:StopPlace:58305
 
-## PM2 Befehle auf Raspberry
+## Configuration
 
-```bash
-pm2 list                    # Status anzeigen
-pm2 logs disen-display      # Live Logs
-pm2 stop disen-display      # App stoppen
-pm2 restart disen-display   # Neustart
-pm2 delete disen-display    # App entfernen
+### Configurable Stop ID
+
+Use the `stopId` URL parameter to change the stop:
+
 ```
-
-## Konfiguration
-
-**Station ändern** (server.js, Zeile 8-9):
-```javascript
-const STOP_ID = 'NSR:StopPlace:58305';  // Disen
+http://localhost:3030?stopId=NSR:StopPlace:58305    # Disen
+http://localhost:3030?stopId=NSR:StopPlace:58195    # Storo
 ```
-
-Andere Stationen findest du via Entur API.
 
 ## API
 
 ### GET /api/departures
-Gibt Abfahrtsdaten als JSON zurück.
+Returns departure data as JSON.
+
+**Parameters:**
+- `stopId` (optional): Stop ID from Entur (defaults to Disen)
 
 **Response:**
 ```json
@@ -78,12 +74,21 @@ Gibt Abfahrtsdaten als JSON zurück.
 }
 ```
 
-## Datensource
+## Features
+
+- 🌙 Dark/Light mode toggle
+- 🌍 English UI
+- 📱 Responsive design
+- ⚡ Real-time departure updates (30-second refresh)
+- 🎨 Color-coded line numbers
+- 📍 Configurable stops via URL parameter
+
+## Data Source
 
 - **API**: Entur Journey Planner (Open Data)
-- **Echtzeit**: Ja, Echtzeit-Fahrtinfo
-- **Update**: Alle 30 Sekunden
+- **Real-time**: Yes, live departure info
+- **Update**: Every 30 seconds
 
 ---
 
-Gebaut mit Express.js + Vanilla JavaScript
+Built with Express.js + Vanilla JavaScript

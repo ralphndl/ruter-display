@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "express": "^5.2.1",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^25.1.0"
   }
 }

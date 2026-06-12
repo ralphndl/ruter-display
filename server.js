@@ -1,13 +1,17 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const path = require('path');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = 3030;
 
-// Default stop (Disen Tram – NSR:StopPlace:58305)
-const DEFAULT_STOP_ID = 'NSR:StopPlace:58305';
+// Default stop (Disen Tram – 58305)
+const DEFAULT_STOP_NUMBER = '58305';
+const STOP_PREFIX = 'NSR:StopPlace:';
 const ENTUR_URL = 'https://api.entur.io/journey-planner/v3/graphql';
+
+const buildStopId = (stopNumber) => `${STOP_PREFIX}${stopNumber}`;
 
 const buildQuery = (stopId) => `
 {
@@ -30,7 +34,8 @@ const buildQuery = (stopId) => `
 
 app.get('/api/departures', async (req, res) => {
   try {
-    const stopId = req.query.stopId || DEFAULT_STOP_ID;
+    const stopNumber = req.query.stopId || DEFAULT_STOP_NUMBER;
+    const stopId = buildStopId(stopNumber);
     const query = buildQuery(stopId);
 
     const response = await fetch(ENTUR_URL, {
@@ -57,6 +62,7 @@ app.get('/api/departures', async (req, res) => {
           time: t.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' }),
           diffMin,
           realtime: c.realtime,
+          transportMode: c.serviceJourney?.journeyPattern?.line?.transportMode ?? 'unknown',
         };
       });
 
@@ -67,6 +73,42 @@ app.get('/api/departures', async (req, res) => {
   }
 });
 
+app.get('/', async (req, res) => {
+  const screenshot = req.query.screenshot;
+
+  if (screenshot) {
+    let browser;
+    try {
+      const stopNumber = req.query.stopId || DEFAULT_STOP_NUMBER;
+      const width = parseInt(req.query.width) || 1024;
+      const height = parseInt(req.query.height) || 600;
+
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+
+      const page = await browser.newPage();
+      await page.setViewport({ width, height });
+
+      const url = `http://localhost:${PORT}/?stopId=${stopNumber}`;
+      await page.goto(url, { waitUntil: 'networkidle2' });
+
+      const screenshotData = await page.screenshot({ type: 'png' });
+      res.type('image/png').send(screenshotData);
+      return;
+    } catch (err) {
+      console.error('Screenshot error:', err);
+      res.status(500).json({ error: 'Screenshot failed' });
+      return;
+    } finally {
+      if (browser) await browser.close();
+    }
+  }
+
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => console.log(`Disen display running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Ruter Display running on http://localhost:${PORT}`));

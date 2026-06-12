@@ -224,6 +224,13 @@ function lineClass(code) {
   return 'line-other';
 }
 
+function transportIcon(mode) {
+  if (mode === 'tram') return '🚊';
+  if (mode === 'metro') return '🚇';
+  if (mode === 'bus') return '🚌';
+  return '';
+}
+
 async function fetchDepartures() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -252,10 +259,11 @@ async function fetchDepartures() {
       const rel = relLabel(d.diffMin);
       const soon = d.diffMin <= 4;
       const rt = d.realtime ? '<span class="realtime-dot" title="Realtime"></span>' : '';
+      const icon = transportIcon(d.transportMode);
       return `
         <div class="row${soon ? ' soon' : ''}">
           <div><span class="line-badge ${lineClass(d.line)}">${d.line}</span></div>
-          <div class="destination">${d.destination}${rt}</div>
+          <div class="destination">${icon} ${d.destination}${rt}</div>
           <div class="abs-time">${d.time}</div>
           <div class="rel-time ${rel.cls}">${rel.text}</div>
         </div>`;

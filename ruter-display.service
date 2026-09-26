@@ -1,0 +1,20 @@
+[Unit]
+Description=Ruter Display
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adjust User and WorkingDirectory to your Pi user / clone location
+User=pi
+WorkingDirectory=/home/pi/ruter-display
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=3030
+# Optional: identify your installation towards Entur ("<company>-<application>")
+#Environment=ET_CLIENT_NAME=yourname-ruter-display
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ruter Display – Departures</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #f0ede8;
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1.5rem;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      padding: 2.5rem 3rem;
+    }
+  }
+
+  body.light {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #2a2a35;
+    padding-bottom: 0.8rem;
+  }
+
+  @media (min-width: 768px) {
+    header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.2rem;
+      align-items: flex-end;
+    }
+  }
+
+  body.light header {
+    border-bottom-color: #cccccc;
+  }
+
+  #stop-name {
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+    color: #f0ede8;
+  }
+
+  @media (min-width: 768px) {
+    #stop-name {
+      font-size: 2rem;
+    }
+  }
+
+  body.light #stop-name {
+    color: #000000;
+  }
+
+  #clock {
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: 1px;
+    color: #f0ede8;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 768px) {
+    #clock {
+      font-size: 2.8rem;
+      letter-spacing: 2px;
+    }
+  }
+
+  body.light #clock {
+    color: #000000;
+  }
+
+  #boards {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    flex: 1;
+  }
+
+  /* Side by side when several stops are shown on a wide (landscape) screen */
+  @media (min-width: 1000px) and (orientation: landscape) {
+    #boards { flex-direction: row; }
+    #boards > .board { flex: 1; min-width: 0; }
+    #boards .departures { gap: 0.5rem; }
+    #boards .row {
+      grid-template-columns: 56px 1fr 80px 90px;
+      padding: 0.6rem 1rem;
+      gap: 0.8rem;
+    }
+    #boards .line-badge { width: 46px; height: 46px; font-size: 1.25rem; }
+    #boards .abs-time { font-size: 1.4rem; }
+  }
+
+  .board-title {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #a09c95;
+    margin-bottom: 0.75rem;
+  }
+
+  body.light .board-title { color: #666666; }
+
+  .departures {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .destination {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 50px 1fr 60px;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    background: #14141c;
+    gap: 0.8rem;
+    transition: background 0.3s;
+    font-size: 0.9rem;
+  }
+
+  @media (min-width: 768px) {
+    .row {
+      grid-template-columns: 80px 1fr 140px 100px;
+      padding: 1.1rem 1.4rem;
+      border-radius: 10px;
+      gap: 1rem;
+      font-size: 1rem;
+    }
+  }
+
+  .row.soon { background: #191520; }
+
+  body.light .row {
+    background: #f0f0f0;
+    color: #000000;
+  }
+
+  body.light .row.soon {
+    background: #e8e8e8;
+  }
+
+  #theme-toggle {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background 0.3s;
+  }
+
+  #theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  body.light #theme-toggle:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .line-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+
+  @media (min-width: 768px) {
+    .line-badge {
+      width: 52px;
+      height: 52px;
+      font-size: 1.4rem;
+    }
+  }
+
+  /* Ruter colour profile per transport mode */
+  .line-tram  { background: #0b91ef; color: #fff; }
+  .line-metro { background: #ec700c; color: #fff; }
+  .line-bus   { background: #e60000; color: #fff; }
+  .line-other { background: #2a2a35; color: #f0ede8; }
+
+  body.light .line-other { background: #d0d0d0; color: #1a1a1a; }
+
+  .destination {
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: #f0ede8;
+  }
+
+  @media (min-width: 768px) {
+    .destination {
+      font-size: 1.5rem;
+    }
+  }
+
+  body.light .destination {
+    color: #000000;
+  }
+
+  .abs-time {
+    font-size: 0.85rem;
+    font-weight: 300;
+    color: #a09c95;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .abs-time {
+      font-size: 1.6rem;
+      display: block;
+    }
+  }
+
+  body.light .abs-time {
+    color: #666666;
+  }
+
+  .rel-time {
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 768px) {
+    .rel-time {
+      font-size: 1.5rem;
+    }
+  }
+
+  .rel-now  { color: #f0c040; }
+  .rel-soon { color: #f0ede8; }
+  .rel-later { color: #6a6870; }
+
+  body.light .rel-now  { color: #d4a800; }
+  body.light .rel-soon { color: #000000; }
+  body.light .rel-later { color: #999999; }
+
+  .realtime-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #3ecf6e;
+    margin-left: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 4px rgba(62, 207, 110, 0.5);
+  }
+
+  #status {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    font-size: 0.85rem;
+    color: #3a3840;
+    text-align: right;
+    transition: color 0.3s;
+  }
+
+  body.light #status {
+    color: #999999;
+  }
+
+  .error-msg {
+    font-size: 1.2rem;
+    color: #c8102e;
+    padding: 2rem 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span id="stop-name">Departures</span>
+  <div style="display: flex; align-items: center; gap: 1rem;">
+    <span id="clock">--:--</span>
+    <button id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+  </div>
+</header>
+
+<div id="boards"><p class="error-msg">Loading departures...</p></div>
+<div id="status">Updates every 30 sec</div>
+
+<script>
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+}
+
+function relLabel(min) {
+  if (min <= 0) return { text: 'Now', cls: 'rel-now' };
+  if (min === 1) return { text: '1 min', cls: 'rel-now' };
+  if (min <= 4) return { text: min + ' min', cls: 'rel-now' };
+  if (min <= 10) return { text: min + ' min', cls: 'rel-soon' };
+  return { text: min + ' min', cls: 'rel-later' };
+}
+
+function lineClass(mode) {
+  if (mode === 'tram') return 'line-tram';
+  if (mode === 'metro') return 'line-metro';
+  if (mode === 'bus') return 'line-bus';
+  return 'line-other';
+}
+
+function transportIcon(mode) {
+  if (mode === 'tram') return '🚊';
+  if (mode === 'metro') return '🚇';
+  if (mode === 'bus') return '🚌';
+  return '';
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+const params = new URLSearchParams(window.location.search);
+const stopIds = (params.get('stopId') || '').split(',').map(s => s.trim()).filter(Boolean);
+const modes = params.get('modes');
+const count = parseInt(params.get('count')) || 7;
+
+function renderRows(departures) {
+  if (!departures.length) return '<p class="error-msg">No departures found</p>';
+  return departures.slice(0, count).map(d => {
+    const rel = relLabel(d.diffMin);
+    const soon = d.diffMin <= 4;
+    const rt = d.realtime ? '<span class="realtime-dot" title="Realtime"></span>' : '';
+    const icon = transportIcon(d.transportMode);
+    return `
+      <div class="row${soon ? ' soon' : ''}">
+        <div><span class="line-badge ${lineClass(d.transportMode)}">${escapeHtml(d.line)}</span></div>
+        <div class="destination">${icon} ${escapeHtml(d.destination)}${rt}</div>
+        <div class="abs-time">${escapeHtml(d.time)}</div>
+        <div class="rel-time ${rel.cls}">${rel.text}</div>
+      </div>`;
+  }).join('');
+}
+
+async function fetchStop(stopId) {
+  const q = new URLSearchParams({ stopId });
+  if (modes) q.set('modes', modes);
+  const res = await fetch(`/api/departures?${q}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function fetchDepartures() {
+  const boards = document.getElementById('boards');
+
+  if (!stopIds.length) {
+    boards.innerHTML =
+      '<p class="error-msg">Please set a stopId parameter in the URL<br><br>Example:<br>?stopId=58366,58382&modes=tram</p>';
+    return;
+  }
+
+  try {
+    const results = await Promise.all(stopIds.map(fetchStop));
+    const multi = results.length > 1;
+
+    document.getElementById('stop-name').textContent =
+      multi ? results.map(r => r.stopName).join(' · ') : results[0].stopName;
+
+    boards.innerHTML = results.map(r => `
+      <section class="board">
+        ${multi ? `<h2 class="board-title">${escapeHtml(r.stopName)}</h2>` : ''}
+        <div class="departures">${renderRows(r.departures)}</div>
+      </section>`).join('');
+
+    document.getElementById('status').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  } catch (e) {
+    // Keep the last departures on screen, only flag the problem in the status line
+    if (!boards.querySelector('.board')) {
+      boards.innerHTML = `<p class="error-msg">Could not fetch departures: ${escapeHtml(e.message)}</p>`;
+    }
+    document.getElementById('status').textContent = 'Update failed – retrying (' + e.message + ')';
+  }
+}
+
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('theme') || 'dark';
+if (savedTheme === 'light') {
+  document.body.classList.add('light');
+  themeToggle.textContent = '☀️';
+}
+
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  themeToggle.textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+});
+
+updateClock();
+setInterval(updateClock, 10000);
+fetchDepartures();
+setInterval(fetchDepartures, 30000);
+</script>
+</body>
+</html>

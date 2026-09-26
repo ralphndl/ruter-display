@@ -1,5 +1,6 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const fs = require('fs');
 const path = require('path');
 
 let puppeteer = null;
@@ -14,8 +15,8 @@ let puppeteer = null;
 const app = express();
 const PORT = process.env.PORT || 3030;
 
-// Default stop when no stopId is given (Jernbanetorget), override with DEFAULT_STOP_ID
-const DEFAULT_STOP_NUMBER = process.env.DEFAULT_STOP_ID || '58366';
+// Personal config.json (not in git), falls back to the shipped example
+const CONFIG_FILES = ['config.json', 'config.example.json'].map(f => path.join(__dirname, f));
 // Entur asks every client to identify itself: "<company>-<application>"
 const CLIENT_NAME = process.env.ET_CLIENT_NAME || 'ruter-display';
 const STOP_PREFIX = 'NSR:StopPlace:';
@@ -26,6 +27,12 @@ const VALID_MODES = ['tram', 'metro', 'bus', 'rail', 'water', 'coach'];
 // Accepts both "58366" and "NSR:StopPlace:58366"
 const buildStopId = (stop) => (stop.startsWith(STOP_PREFIX) ? stop : `${STOP_PREFIX}${stop}`);
 
+// Read on every request, so edits to config.json apply without a restart
+function loadConfig() {
+  const file = CONFIG_FILES.find(f => fs.existsSync(f));
+  return file ? JSON.parse(fs.readFileSync(file, 'utf8')) : { stops: [] };
+}
+
 // Parses "tram,metro" into a list of valid Entur transport modes (empty = all)
 const parseModes = (modes) =>
   (modes || '').split(',').map(m => m.trim()).filter(m => VALID_MODES.includes(m));
@@ -34,7 +41,7 @@ const QUERY = `
 query ($stopId: String!, $modes: [TransportMode]) {
   stopPlace(id: $stopId) {
     name
-    estimatedCalls(timeRange: 72000, numberOfDepartures: 10, whiteListedModes: $modes) {
+    estimatedCalls(timeRange: 72000, numberOfDepartures: 20, whiteListedModes: $modes) {
       expectedArrivalTime
       expectedDepartureTime
       destinationDisplay { frontText }
@@ -49,10 +56,21 @@ query ($stopId: String!, $modes: [TransportMode]) {
   }
 }`;
 
+app.get('/api/config', (req, res) => {
+  try {
+    res.json(loadConfig());
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: `Invalid config: ${err.message}` });
+  }
+});
+
 app.get('/api/departures', async (req, res) => {
   try {
-    const stopId = buildStopId(req.query.stopId || DEFAULT_STOP_NUMBER);
+    const stopId = buildStopId(req.query.stopId || String(loadConfig().stops?.[0]?.id ?? ''));
     const modes = parseModes(req.query.modes);
+    // Hide departures you can't reach anyway (walking time to the stop)
+    const minMinutes = Number(req.query.minMinutes) || 0;
 
     const response = await fetch(ENTUR_URL, {
       method: 'POST',
@@ -84,7 +102,8 @@ app.get('/api/departures', async (req, res) => {
           realtime: c.realtime,
           transportMode: c.serviceJourney?.journeyPattern?.line?.transportMode ?? 'unknown',
         };
-      });
+      })
+      .filter(d => d.diffMin >= minMinutes);
 
     res.json({ stopName, departures });
   } catch (err) {
@@ -103,8 +122,9 @@ app.get('/', (req, res) => {
     (async () => {
       let browser;
       try {
-        const params = new URLSearchParams({ stopId: req.query.stopId || DEFAULT_STOP_NUMBER });
-        if (req.query.modes) params.set('modes', req.query.modes);
+        // Render the normal page with the same stop parameters (or the config when none are given)
+        const { screenshot, width: _w, height: _h, ...pageQuery } = req.query;
+        const params = new URLSearchParams(pageQuery);
         const width = parseInt(req.query.width) || 1024;
         const height = parseInt(req.query.height) || 600;
 

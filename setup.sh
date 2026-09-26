@@ -25,13 +25,22 @@ npm install --omit=optional
 echo "✓ Dependencies installed"
 echo ""
 
+# Create personal config from the example (never overwrite an existing one)
+if [ ! -f config.json ]; then
+  cp config.example.json config.json
+  echo "✓ Created config.json – edit it to set your stops"
+else
+  echo "✓ Keeping existing config.json"
+fi
+echo ""
+
 echo "✅ Setup complete!"
 echo ""
 echo "🎯 To start the server, run:"
 echo "   node server.js"
 echo ""
 echo "📱 Then access the app at:"
-echo "   http://<pi-ip>:3030/?stopId=58366,58382&modes=tram"
+echo "   http://<pi-ip>:3030/"
 echo ""
 echo "💡 Example stop IDs (find more at https://stoppested.entur.org):"
 echo "   - Jernbanetorget:   58366"

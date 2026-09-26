@@ -105,6 +105,8 @@
     }
     #boards .line-badge { width: 46px; height: 46px; font-size: 1.25rem; }
     #boards .abs-time { font-size: 1.4rem; }
+    header { margin-bottom: 1.5rem; }
+    #status { padding-top: 0.75rem; }
   }
 
   .board-title {
@@ -115,6 +117,26 @@
   }
 
   body.light .board-title { color: #666666; }
+
+  /* One box per transport mode when a stop has several (e.g. tram + metro) */
+  .group + .group { margin-top: 1rem; }
+
+  .group-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #6a6870;
+    margin-bottom: 0.5rem;
+  }
+
+  body.light .group-title { color: #999999; }
+
+  .min-hint {
+    font-size: 0.8em;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-left: 0.5rem;
+  }
+  .min-hint::before { content: '· '; }
 
   .departures {
     display: flex;
@@ -201,7 +223,7 @@
 
   /* Ruter colour profile per transport mode */
   .line-tram  { background: #0b91ef; color: #fff; }
-  .line-metro { background: #ec700c; color: #fff; }
+  .line-metro { background: #ec700c; color: #fff; border-radius: 10px; } /* square: metro vs. round tram */
   .line-bus   { background: #e60000; color: #fff; }
   .line-other { background: #2a2a35; color: #f0ede8; }
 
@@ -300,7 +322,7 @@
   <span id="stop-name">Departures</span>
   <div style="display: flex; align-items: center; gap: 1rem;">
     <span id="clock">--:--</span>
-    <button id="theme-toggle" title="Toggle dark/light mode">🌙</button>
+    <button id="theme-toggle" title="Theme: auto">🌓</button>
   </div>
 </header>
 
@@ -335,19 +357,35 @@ function transportIcon(mode) {
   return '';
 }
 
+const MODE_LABELS = { tram: 'Tram', metro: 'Metro', bus: 'Bus', rail: 'Train', water: 'Ferry', coach: 'Coach' };
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
+const VALID_MODES = ['tram', 'metro', 'bus', 'rail', 'water', 'coach'];
 const params = new URLSearchParams(window.location.search);
-const stopIds = (params.get('stopId') || '').split(',').map(s => s.trim()).filter(Boolean);
-const modes = params.get('modes');
-const count = parseInt(params.get('count')) || 7;
 
-function renderRows(departures) {
+let stops = [];   // [{ id, modes }]
+let count = 7;
+let themeConfig = { default: 'auto', nightStart: '19:00', nightEnd: '07:00' };
+
+function parseModes(str) {
+  return (str || '').split(',').map(m => m.trim()).filter(m => VALID_MODES.includes(m));
+}
+
+// URL stop entry: "58366", "NSR:StopPlace:58366" or with own modes "58366:tram:metro"
+function parseStop(entry, fallbackModes) {
+  const tokens = entry.split(':').map(t => t.trim());
+  const id = tokens.filter(t => /^\d+$/.test(t)).pop();
+  const modes = tokens.filter(t => VALID_MODES.includes(t));
+  return id ? { id, modes: modes.length ? modes : fallbackModes } : null;
+}
+
+function renderRows(departures, rows) {
   if (!departures.length) return '<p class="error-msg">No departures found</p>';
-  return departures.slice(0, count).map(d => {
+  return departures.slice(0, rows).map(d => {
     const rel = relLabel(d.diffMin);
     const soon = d.diffMin <= 4;
     const rt = d.realtime ? '<span class="realtime-dot" title="Realtime"></span>' : '';
@@ -362,26 +400,64 @@ function renderRows(departures) {
   }).join('');
 }
 
-async function fetchStop(stopId) {
+async function fetchModes(stopId, modes, minMinutes) {
   const q = new URLSearchParams({ stopId });
-  if (modes) q.set('modes', modes);
+  if (modes.length) q.set('modes', modes.join(','));
+  if (minMinutes > 0) q.set('minMinutes', minMinutes);
   const res = await fetch(`/api/departures?${q}`);
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return data;
 }
 
+// A stop with several modes gets one group per mode, so frequent trams can't push the metro off the list
+// minMinutes is either one number for the stop or per mode, e.g. { "metro": 8, "tram": 5 }
+function minMinutesFor(stop, modes) {
+  const m = stop.minMinutes;
+  if (m && typeof m === 'object') return modes.length === 1 ? Number(m[modes[0]]) || 0 : 0;
+  return Number(m) || 0;
+}
+
+async function fetchStop(stop) {
+  const groupModes = stop.modes.length > 1 ? stop.modes.map(m => [m]) : [stop.modes];
+  const mins = groupModes.map(modes => minMinutesFor(stop, modes));
+  const results = await Promise.all(groupModes.map((modes, i) => fetchModes(stop.id, modes, mins[i])));
+  return {
+    stopName: results[0].stopName,
+    minMinutes: mins.length === 1 ? mins[0] : 0,
+    groups: results.map((r, i) => ({ modes: groupModes[i], minMinutes: mins[i], departures: r.departures })),
+  };
+}
+
+function minHint(min) {
+  return min > 0 ? `<span class="min-hint">from ${min} min</span>` : '';
+}
+
+// Split the rows of a stop across its groups (7 over 2 → 4 + 3)
+function rowsForGroup(index, groups) {
+  return Math.max(2, Math.floor(count / groups) + (index < count % groups ? 1 : 0));
+}
+
+function renderGroups(groups) {
+  if (groups.length === 1) return `<div class="departures">${renderRows(groups[0].departures, count)}</div>`;
+  return groups.map((g, i) => `
+    <div class="group">
+      <h3 class="group-title">${transportIcon(g.modes[0])} ${MODE_LABELS[g.modes[0]] || g.modes[0]}${minHint(g.minMinutes)}</h3>
+      <div class="departures">${renderRows(g.departures, rowsForGroup(i, groups.length))}</div>
+    </div>`).join('');
+}
+
 async function fetchDepartures() {
   const boards = document.getElementById('boards');
 
-  if (!stopIds.length) {
+  if (!stops.length) {
     boards.innerHTML =
-      '<p class="error-msg">Please set a stopId parameter in the URL<br><br>Example:<br>?stopId=58366,58382&modes=tram</p>';
+      '<p class="error-msg">No stops configured.<br><br>Add them to config.json or use the URL, e.g.<br>?stopId=58366:tram:metro,58382:tram</p>';
     return;
   }
 
   try {
-    const results = await Promise.all(stopIds.map(fetchStop));
+    const results = await Promise.all(stops.map(fetchStop));
     const multi = results.length > 1;
 
     document.getElementById('stop-name').textContent =
@@ -389,8 +465,8 @@ async function fetchDepartures() {
 
     boards.innerHTML = results.map(r => `
       <section class="board">
-        ${multi ? `<h2 class="board-title">${escapeHtml(r.stopName)}</h2>` : ''}
-        <div class="departures">${renderRows(r.departures)}</div>
+        ${multi ? `<h2 class="board-title">${escapeHtml(r.stopName)}${minHint(r.minMinutes)}</h2>` : ''}
+        ${renderGroups(r.groups)}
       </section>`).join('');
 
     document.getElementById('status').textContent =
@@ -405,24 +481,87 @@ async function fetchDepartures() {
   }
 }
 
+// Theme: cycles light → dark → auto; auto is dark between nightStart and nightEnd
+const THEME_MODES = ['light', 'dark', 'auto'];
+const THEME_ICONS = { light: '☀️', dark: '🌙', auto: '🌓' };
 const themeToggle = document.getElementById('theme-toggle');
-const savedTheme = localStorage.getItem('theme') || 'dark';
-if (savedTheme === 'light') {
-  document.body.classList.add('light');
-  themeToggle.textContent = '☀️';
+
+function loadThemeMode() {
+  try { return localStorage.getItem('theme'); } catch (e) { return null; }
+}
+
+let themeMode = loadThemeMode();
+
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+function isNight() {
+  const now = new Date();
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const start = toMinutes(themeConfig.nightStart);
+  const end = toMinutes(themeConfig.nightEnd);
+  return start > end ? (cur >= start || cur < end) : (cur >= start && cur < end);
+}
+
+function applyTheme() {
+  const mode = THEME_MODES.includes(themeMode) ? themeMode
+    : THEME_MODES.includes(themeConfig.default) ? themeConfig.default : 'auto';
+  const light = mode === 'light' || (mode === 'auto' && !isNight());
+  document.body.classList.toggle('light', light);
+  themeToggle.textContent = THEME_ICONS[mode];
+  themeToggle.title = mode === 'auto'
+    ? `Theme: auto (dark ${themeConfig.nightStart}–${themeConfig.nightEnd})`
+    : `Theme: ${mode}`;
+  return mode;
 }
 
 themeToggle.addEventListener('click', () => {
-  document.body.classList.toggle('light');
-  const isLight = document.body.classList.contains('light');
-  themeToggle.textContent = isLight ? '☀️' : '🌙';
-  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  const current = applyTheme();
+  themeMode = THEME_MODES[(THEME_MODES.indexOf(current) + 1) % THEME_MODES.length];
+  try { localStorage.setItem('theme', themeMode); } catch (e) { /* not persisted */ }
+  applyTheme();
 });
 
-updateClock();
-setInterval(updateClock, 10000);
-fetchDepartures();
-setInterval(fetchDepartures, 30000);
+// Stops come from the URL if given, otherwise from the server config
+async function init() {
+  let config = {};
+  try {
+    const res = await fetch('/api/config');
+    config = await res.json();
+    if (config.error) throw new Error(config.error);
+  } catch (e) {
+    document.getElementById('status').textContent = 'Could not load config: ' + e.message;
+  }
+
+  themeConfig = { ...themeConfig, ...(config.theme || {}) };
+  applyTheme();
+
+  const urlModes = parseModes(params.get('modes'));
+  const urlStops = params.get('stopId');
+  stops = urlStops
+    ? urlStops.split(',').map(e => parseStop(e, urlModes)).filter(Boolean)
+    : (config.stops || []).map(st => ({
+        id: String(st.id).split(':').pop(),
+        modes: urlModes.length ? urlModes : parseModes((st.modes || []).join(',')),
+        minMinutes: st.minMinutes,
+      }));
+  count = parseInt(params.get('count')) || parseInt(config.count) || 7;
+
+  fetchDepartures();
+  setInterval(fetchDepartures, 30000);
+}
+
+function tick() {
+  updateClock();
+  applyTheme();
+}
+
+applyTheme();
+tick();
+setInterval(tick, 10000);
+init();
 </script>
 </body>
 </html>

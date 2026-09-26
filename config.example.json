@@ -1,0 +1,12 @@
+{
+  "stops": [
+    { "id": "58366", "modes": ["tram", "metro"] },
+    { "id": "58382", "modes": ["tram"], "minMinutes": 3 }
+  ],
+  "count": 7,
+  "theme": {
+    "default": "auto",
+    "nightStart": "19:00",
+    "nightEnd": "07:00"
+  }
+}

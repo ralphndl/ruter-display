@@ -2,6 +2,9 @@
 node_modules/
 yarn.lock
 
+# Personal config (see config.example.json)
+config.json
+
 # Environment
 .env
 .env.local

@@ -183,7 +183,12 @@
     background: #e8e8e8;
   }
 
-  #theme-toggle {
+  /* Text size: zoom scales fonts, badges and spacing alike; min-height keeps the page filling the screen */
+  body { zoom: var(--zoom, 1); min-height: calc(100vh / var(--zoom, 1)); }
+  body.size-small   { --zoom: 0.85; }
+  body.size-smaller { --zoom: 0.7; }
+
+  #theme-toggle, #size-toggle {
     background: none;
     border: none;
     color: inherit;
@@ -194,11 +199,13 @@
     transition: background 0.3s;
   }
 
-  #theme-toggle:hover {
+  #size-toggle { font-size: 1.2rem; font-weight: 600; }
+
+  #theme-toggle:hover, #size-toggle:hover {
     background: rgba(255, 255, 255, 0.1);
   }
 
-  body.light #theme-toggle:hover {
+  body.light #theme-toggle:hover, body.light #size-toggle:hover {
     background: rgba(0, 0, 0, 0.1);
   }
 
@@ -322,6 +329,7 @@
   <span id="stop-name">Departures</span>
   <div style="display: flex; align-items: center; gap: 1rem;">
     <span id="clock">--:--</span>
+    <button id="size-toggle" title="Text size: normal">Aa</button>
     <button id="theme-toggle" title="Theme: auto">🌓</button>
   </div>
 </header>
@@ -524,6 +532,26 @@ themeToggle.addEventListener('click', () => {
   applyTheme();
 });
 
+// Text size: cycles normal → small → smaller, remembered per browser
+const SIZES = ['normal', 'small', 'smaller'];
+const sizeToggle = document.getElementById('size-toggle');
+let sizeDefault = 'normal';
+let size = null;
+try { size = localStorage.getItem('size'); } catch (e) { /* not available */ }
+
+function applySize() {
+  const current = SIZES.includes(size) ? size : SIZES.includes(sizeDefault) ? sizeDefault : 'normal';
+  SIZES.forEach(s => document.body.classList.toggle(`size-${s}`, s === current));
+  sizeToggle.title = `Text size: ${current}`;
+  return current;
+}
+
+sizeToggle.addEventListener('click', () => {
+  size = SIZES[(SIZES.indexOf(applySize()) + 1) % SIZES.length];
+  try { localStorage.setItem('size', size); } catch (e) { /* not persisted */ }
+  applySize();
+});
+
 // Stops come from the URL if given, otherwise from the server config
 async function init() {
   let config = {};
@@ -537,6 +565,8 @@ async function init() {
 
   themeConfig = { ...themeConfig, ...(config.theme || {}) };
   applyTheme();
+  sizeDefault = config.size || 'normal';
+  applySize();
 
   const urlModes = parseModes(params.get('modes'));
   const urlStops = params.get('stopId');
@@ -559,6 +589,7 @@ function tick() {
 }
 
 applyTheme();
+applySize();
 tick();
 setInterval(tick, 10000);
 init();

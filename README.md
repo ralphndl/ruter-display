@@ -88,6 +88,7 @@ The file is not tracked by git; if it is missing, `config.example.json` is used.
 | `stops[].modes` | Transport modes for this stop: `tram`, `metro`, `bus`, `rail`, `water`, `coach`. Empty or missing = all modes in one list. With several modes, each mode gets its own box (the rows are split between them), so frequent trams never push the metro off the screen. The boxes appear in the order of `modes`. |
 | `stops[].minMinutes` | Optional walking time: hide departures leaving sooner than this. One number (`5`) or per mode (`{ "metro": 8, "tram": 5 }`). |
 | `count` | Departures per stop (default 7). |
+| `size` | Default text size: `normal`, `small` or `smaller` (the **Aa** button cycles through them, remembered per browser). |
 | `theme.default` | `light`, `dark` or `auto` – used until someone picks a theme with the toggle (the choice is remembered per browser). |
 | `theme.nightStart` / `theme.nightEnd` | In `auto` mode the display is dark between these times (default 19:00–07:00). |
 

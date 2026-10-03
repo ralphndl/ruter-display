@@ -18,7 +18,7 @@ const base = process.argv[2] || `http://localhost:${loadServerConfig().port}`;
   }
 
   let failed = false;
-  for (const stop of config.stops || []) {
+  for (const stop of config.display.stops || []) {
     const q = new URLSearchParams({ stopId: stop.id, modes: (stop.modes || []).join(',') });
     if (typeof stop.minMinutes === "number") q.set("minMinutes", stop.minMinutes);
     const data = await (await fetch(`${base}/api/departures?${q}`)).json();

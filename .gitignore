@@ -21,6 +21,7 @@ dist/
 build/
 .next/
 out/
+test-results/
 
 # Logs
 *.log

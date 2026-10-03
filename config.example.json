@@ -1,17 +1,49 @@
 {
   "server": {
-    "port": 3030,
-    "clientName": "oslo-departures"
+    "port": 3030
   },
-  "stops": [
-    { "id": "58366", "modes": ["tram", "metro"] },
-    { "id": "58382", "modes": ["tram"], "minMinutes": 3 }
-  ],
-  "count": 7,
-  "size": "normal",
-  "theme": {
-    "default": "auto",
-    "nightStart": "19:00",
-    "nightEnd": "07:00"
+  "source": {
+    "provider": "entur",
+    "endpoint": "https://api.entur.io/journey-planner/v3/graphql",
+    "headers": {
+      "ET-Client-Name": "departino-display"
+    },
+    "timeoutMs": 10000
+  },
+  "display": {
+    "stops": [
+      {
+        "id": "58366",
+        "modes": [
+          "tram",
+          "metro"
+        ]
+      },
+      {
+        "id": "58382",
+        "modes": [
+          "tram"
+        ],
+        "minMinutes": 3
+      }
+    ],
+    "count": 7,
+    "size": "normal",
+    "refreshSeconds": 30,
+    "timeZone": "Europe/Oslo",
+    "locale": "nb-NO",
+    "theme": {
+      "default": "auto",
+      "nightStart": "19:00",
+      "nightEnd": "07:00"
+    },
+    "modeColors": {
+      "tram": "#007fba",
+      "metro": "#d76518",
+      "bus": "#d51b29",
+      "rail": "#b84932",
+      "water": "#655296",
+      "coach": "#28764b"
+    }
   }
 }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Oslo Departures (independent departure board)
+Description=Departino (independent departure board)
 After=network-online.target
 Wants=network-online.target
 
@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 # Template: make service fills in the current user, checkout and Node.js path.
 User=pi
-WorkingDirectory=/home/pi/ruter-display
+WorkingDirectory=/home/pi/departino
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=10

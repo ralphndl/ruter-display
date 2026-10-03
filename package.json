@@ -1,12 +1,13 @@
 {
-  "name": "oslo-departures",
+  "name": "departino",
   "version": "1.0.0",
-  "description": "Independent departure board for Oslo, using open data from Entur",
+  "description": "Extensible, self-hosted public transport departure board, with Oslo/Entur as the reference integration",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node scripts/check.js"
+    "check": "node scripts/check.js",
+    "test": "node --test test/*.test.cjs"
   },
   "keywords": [],
   "author": "",

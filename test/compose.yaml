@@ -1,0 +1,35 @@
+# Merge with the root compose.yaml. Paths are relative to that first file.
+services:
+  departino:
+    restart: "no"
+    environment:
+      NODE_OPTIONS: --require=/app/test/fixtures/entur.cjs
+    volumes:
+      - type: bind
+        source: ./config.example.json
+        target: /app/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./test
+        target: /app/test
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./scripts
+        target: /app/scripts
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./departino.service
+        target: /app/departino.service
+        read_only: true
+        bind:
+          create_host_path: false
+
+networks:
+  default:
+    internal: true

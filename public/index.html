@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oslo Departures – Independent departure board</title>
+<title>Departino – Independent departure board</title>
 <style>
   @font-face {
     font-family: 'Fira Sans';
@@ -128,13 +128,7 @@
     color: #fff;
   }
   /* Flat route plates with the small corner radius of a street departure board. */
-  .line-tram { background: #007fba; }
-  .line-metro { background: #d76518; }
-  .line-bus { background: #d51b29; }
-  .line-rail { background: #b84932; }
-  .line-water { background: #655296; }
-  .line-coach { background: #28764b; }
-  .line-other { background: #465361; }
+  .line-badge { background: #465361; }
   .destination {
     display: flex;
     align-items: center;
@@ -221,17 +215,23 @@
 <main id="boards"><p class="error-msg">Loading departures...</p></main>
 <footer class="display-footer">
   <div class="footer-meta">
-    <p><span class="project-name">Oslo Departures</span> · Independent project. Not affiliated with or endorsed by Ruter or Entur.</p>
-    <p id="status" role="status">Updates every 30 sec</p>
+    <p><span class="project-name">Departino</span> · <span id="provider-notice">Independent departure board.</span></p>
+    <p id="status" role="status">Loading configuration…</p>
   </div>
-  <p class="data-attribution">Data from <a href="https://entur.no/">Entur AS</a> under <a href="https://data.norge.no/nlod">NLOD (data.norge.no/nlod)</a>.
-    Filtered and formatted by Oslo Departures; countdowns calculated from departure times.</p>
+  <p class="data-attribution"></p>
 </footer>
 
 <script>
+let displayConfig = { locale: 'en-GB', timeZone: 'UTC', modeColors: {} };
+function displayTime(date, seconds = false) {
+  return date.toLocaleTimeString(displayConfig.locale, {
+    timeZone: displayConfig.timeZone, hour: '2-digit', minute: '2-digit',
+    hourCycle: 'h23', ...(seconds ? { second: '2-digit' } : {}),
+  });
+}
+
 function updateClock() {
-  document.getElementById('clock').textContent =
-    new Date().toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clock').textContent = displayTime(new Date());
 }
 
 function relLabel(min, time) {
@@ -242,8 +242,33 @@ function relLabel(min, time) {
   return { text: time, cls: 'rel-later' };
 }
 
-function lineClass(mode) {
-  return VALID_MODES.includes(mode) ? `line-${mode}` : 'line-other';
+function lineStyle(departure) {
+  const validColor = color => typeof color === 'string' && /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(color);
+  const color = departure.color || displayConfig.modeColors[departure.transportMode];
+  return (validColor(color) ? `background:${color};` : '')
+    + (validColor(departure.textColor) ? `color:${departure.textColor};` : '');
+}
+
+function renderAttribution(provider) {
+  document.getElementById('provider-notice').textContent = provider.notice;
+  const footer = document.querySelector('.data-attribution');
+  footer.replaceChildren(document.createTextNode('Data from '));
+  const addLink = (label, url) => {
+    // Provider metadata is text; only HTTP(S) links may become clickable.
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.textContent = label;
+      footer.append(a);
+    } else footer.append(document.createTextNode(label));
+  };
+  const source = provider.attribution;
+  addLink(source.name, source.url);
+  if (source.license) {
+    footer.append(document.createTextNode(' under '));
+    addLink(source.license, source.licenseUrl);
+  }
+  footer.append(document.createTextNode('. Filtered and formatted by Departino; countdowns calculated from departure times.'));
 }
 
 // Local, monochrome side-profile pictograms: consistent on every kiosk/browser.
@@ -275,12 +300,10 @@ function parseModes(str) {
   return (str || '').split(',').map(m => m.trim()).filter(m => VALID_MODES.includes(m));
 }
 
-// URL stop entry: "58366", "NSR:StopPlace:58366" or with own modes "58366:tram:metro"
-function parseStop(entry, fallbackModes) {
-  const tokens = entry.split(':').map(t => t.trim());
-  const id = tokens.filter(t => /^\d+$/.test(t)).pop();
-  const modes = tokens.filter(t => VALID_MODES.includes(t));
-  return id ? { id, modes: modes.length ? modes : fallbackModes } : null;
+// IDs are opaque: preserve letters, colons and provider namespaces.
+function parseStop(entry, modes) {
+  const id = entry.trim();
+  return id ? { id, modes } : null;
 }
 
 function renderRows(departures, rows, showMode = false) {
@@ -292,7 +315,7 @@ function renderRows(departures, rows, showMode = false) {
     const icon = showMode ? transportIcon(d.transportMode) : '';
     return `
       <div class="row${soon ? ' soon' : ''}">
-        <div><span class="line-badge ${lineClass(d.transportMode)}" aria-label="${escapeHtml(MODE_LABELS[d.transportMode] || 'Transport')} ${escapeHtml(d.line)}">${escapeHtml(d.line)}</span></div>
+        <div><span class="line-badge" style="${lineStyle(d)}" aria-label="${escapeHtml(MODE_LABELS[d.transportMode] || 'Transport')} ${escapeHtml(d.line)}">${escapeHtml(d.line)}</span></div>
         <div class="destination" title="${escapeHtml(d.destination)}">${icon}<span class="destination-text">${escapeHtml(d.destination)}</span></div>
         <div class="rel-time ${rel.cls}">${escapeHtml(rel.text)}${rt}</div>
       </div>`;
@@ -364,7 +387,7 @@ async function fetchDepartures() {
 
   if (!stops.length) {
     boards.innerHTML =
-      '<p class="error-msg">No stops configured.<br><br>Add them to config.json or use the URL, e.g.<br>?stopId=58366:tram:metro,58382:tram</p>';
+      '<p class="error-msg">No stops configured. Add stop IDs for your data provider to config.json or use the stopId URL parameter.</p>';
     return;
   }
 
@@ -384,10 +407,11 @@ async function fetchDepartures() {
         ${renderGroups(r.groups)}
       </section>`).join('');
 
-    document.getElementById('status').textContent =
-      'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('status').textContent = 'Updated ' + displayTime(new Date(), true);
+    window.departinoError = null;
 
   } catch (e) {
+    window.departinoError = e.message;
     // Keep the last departures on screen, only flag the problem in the status line
     if (!boards.querySelector('.board')) {
       boards.innerHTML = `<p class="error-msg">Could not fetch departures: ${escapeHtml(e.message)}</p>`;
@@ -417,8 +441,11 @@ function toMinutes(hhmm) {
 }
 
 function isNight() {
-  const now = new Date();
-  const cur = now.getHours() * 60 + now.getMinutes();
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: displayConfig.timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const cur = Number(parts.find(p => p.type === 'hour').value) * 60
+    + Number(parts.find(p => p.type === 'minute').value);
   const start = toMinutes(themeConfig.nightStart);
   const end = toMinutes(themeConfig.nightEnd);
   return start > end ? (cur >= start || cur < end) : (cur >= start && cur < end);
@@ -467,33 +494,46 @@ sizeToggle.addEventListener('click', () => {
 
 // Stops come from the URL if given, otherwise from the server config
 async function init() {
-  let config = {};
   try {
     const res = await fetch('/api/config');
-    config = await res.json();
-    if (config.error) throw new Error(config.error);
+    const config = await res.json();
+    if (!res.ok || config.error) throw new Error(config.error || 'Could not load configuration');
+    if (!config.display || !config.provider?.attribution) {
+      throw new Error('Unexpected server response. Restart Departino and reload this page.');
+    }
+
+    displayConfig = config.display;
+    renderAttribution(config.provider);
+    updateClock();
+    themeConfig = { ...themeConfig, ...(displayConfig.theme || {}) };
+    applyTheme();
+    sizeDefault = displayConfig.size || 'normal';
+    applySize();
+
+    const urlModes = parseModes(params.get('modes'));
+    const urlStops = params.getAll('stopId');
+    stops = urlStops.length
+      ? urlStops.flatMap(value => value.split(',')).map(e => parseStop(e, urlModes)).filter(Boolean)
+      : (displayConfig.stops || []).map(st => ({
+          id: String(st.id),
+          modes: urlModes.length ? urlModes : parseModes((st.modes || []).join(',')),
+          minMinutes: st.minMinutes,
+        }));
+    count = parseInt(params.get('count')) || parseInt(displayConfig.count) || 7;
+
+    await fetchDepartures();
+    window.departinoReady = true;
+    setInterval(fetchDepartures, displayConfig.refreshSeconds * 1000);
   } catch (e) {
-    document.getElementById('status').textContent = 'Could not load config: ' + e.message;
+    const message = 'Could not start display: ' + e.message;
+    const error = document.createElement('p');
+    error.className = 'error-msg';
+    error.textContent = message;
+    document.getElementById('boards').replaceChildren(error);
+    document.getElementById('status').textContent = message;
+    window.departinoError = e.message;
+    window.departinoReady = true;
   }
-
-  themeConfig = { ...themeConfig, ...(config.theme || {}) };
-  applyTheme();
-  sizeDefault = config.size || 'normal';
-  applySize();
-
-  const urlModes = parseModes(params.get('modes'));
-  const urlStops = params.get('stopId');
-  stops = urlStops
-    ? urlStops.split(',').map(e => parseStop(e, urlModes)).filter(Boolean)
-    : (config.stops || []).map(st => ({
-        id: String(st.id).split(':').pop(),
-        modes: urlModes.length ? urlModes : parseModes((st.modes || []).join(',')),
-        minMinutes: st.minMinutes,
-      }));
-  count = parseInt(params.get('count')) || parseInt(config.count) || 7;
-
-  fetchDepartures();
-  setInterval(fetchDepartures, 30000);
 }
 
 function tick() {

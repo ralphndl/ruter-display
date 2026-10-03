@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: Node checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --omit=optional
+      - name: Check JavaScript and shell syntax
+        run: |
+          for file in server.js lib/*.js lib/providers/*.js scripts/*.js test/*.cjs test/fixtures/*.cjs; do
+            node --check "$file"
+          done
+          for file in scripts/*.sh; do sh -n "$file"; done
+      - run: npm test
+
+  docker:
+    name: Docker and screenshots
+    runs-on: ubuntu-latest
+    needs: node
+    timeout-minutes: 15
+    env:
+      COMPOSE_FILE: compose.yaml:test/compose.yaml
+      COMPOSE_PROJECT_NAME: departino-ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build and wait for a healthy container
+        run: docker compose up -d --build --wait --wait-timeout 60
+      - name: Check API, browser rendering and PNG output
+        run: >-
+          docker compose exec -T
+          -e TEST_BASE_URL=http://127.0.0.1:3030
+          -e TEST_BROWSER=1
+          -e TEST_ARTIFACT_DIR=/tmp/ci-artifacts
+          departino npm test
+      - name: Collect screenshots and logs
+        if: always()
+        run: |
+          mkdir -p test-results
+          docker compose logs --no-color > test-results/container.log 2>&1
+          docker compose cp departino:/tmp/ci-artifacts/. test-results/ || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: docker-smoke-results
+          path: test-results/
+          retention-days: 7
+      - name: Stop test containers
+        if: always()
+        run: docker compose down --volumes --remove-orphans

@@ -1,0 +1,40 @@
+{
+  "server": {
+    "port": 3030
+  },
+  "source": {
+    "provider": "demo"
+  },
+  "display": {
+    "stops": [
+      {
+        "id": "demo:central",
+        "modes": [
+          "bus",
+          "metro"
+        ]
+      },
+      {
+        "id": "demo:riverside",
+        "modes": [
+          "bus"
+        ],
+        "minMinutes": 3
+      }
+    ],
+    "count": 7,
+    "size": "normal",
+    "refreshSeconds": 30,
+    "timeZone": "Europe/Berlin",
+    "locale": "de-DE",
+    "theme": {
+      "default": "auto",
+      "nightStart": "19:00",
+      "nightEnd": "07:00"
+    },
+    "modeColors": {
+      "bus": "#5b3fa3",
+      "metro": "#156c42"
+    }
+  }
+}

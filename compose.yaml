@@ -1,5 +1,5 @@
 services:
-  ruter-display:
+  departino:
     build: .
     init: true
     restart: unless-stopped

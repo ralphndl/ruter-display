@@ -2,7 +2,7 @@ FROM node:22-bookworm-slim
 
 # Use Debian's Chromium on both amd64 and arm64 instead of downloading Chrome.
 ENV NODE_ENV=production \
-    TZ=Europe/Oslo \
+    TZ=UTC \
     PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 

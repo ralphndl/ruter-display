@@ -19,16 +19,16 @@ uninstall: ## Stop the local server and remove dependencies; keep config.json
 
 ##@ Local server
 start: ## Start in the background using config.json
-	@sh scripts/local-server.sh start
+	@node scripts/local-server.js start
 
 stop: ## Stop local project servers and their child processes
-	@sh scripts/local-server.sh stop
+	@node scripts/local-server.js stop
 
 restart: ## Stop old project processes and start the current server
-	@sh scripts/local-server.sh restart
+	@node scripts/local-server.js restart
 
 status: ## Show whether the current local server is ready
-	@sh scripts/local-server.sh status
+	@node scripts/local-server.js status
 
 dev: ## Run in the foreground with auto-reload; stop with Ctrl+C
 	node --watch server.js

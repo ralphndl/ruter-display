@@ -91,9 +91,10 @@ For development, `make dev` restarts automatically when code changes.
 Run `make` for help. `make stop` also finds manual `node server.js` and Node watch
 processes from this checkout, even without a PID file, and stops their children.
 Unrelated processes and other checkouts are left alone. For a full
-systemd uninstall, run `make unservice` before `make uninstall`. The `.service`
-file, [departino.service](departino.service), is a template; `make service` fills
-in your machine's paths automatically and restarts the service.
+systemd uninstall, run `make unservice` before `make uninstall`. `make service`
+generates the systemd unit directly on your Pi with the correct user and paths,
+then restarts it. No separate service file needs editing; your settings stay in
+`config.json`.
 
 ## Make it yours
 

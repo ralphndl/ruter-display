@@ -23,12 +23,6 @@ services:
         read_only: true
         bind:
           create_host_path: false
-      - type: bind
-        source: ./departino.service
-        target: /app/departino.service
-        read_only: true
-        bind:
-          create_host_path: false
 
 networks:
   default:

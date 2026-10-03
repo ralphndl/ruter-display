@@ -13,9 +13,7 @@ async function installer(t) {
   await fs.mkdir(path.join(checkout, 'scripts'), { recursive: true });
   await fs.mkdir(bin);
   const root = path.resolve(__dirname, '..');
-  for (const file of ['scripts/systemd-service.sh', 'departino.service']) {
-    await fs.copyFile(path.join(root, file), path.join(checkout, file));
-  }
+  await fs.copyFile(path.join(root, 'scripts/systemd-service.sh'), path.join(checkout, 'scripts/systemd-service.sh'));
   await fs.writeFile(path.join(checkout, 'config.json'), '{"personal":"unchanged"}');
   const mock = await fs.readFile(path.join(__dirname, 'fixtures/systemd-command.cjs'), 'utf8');
   for (const name of ['sudo', 'systemctl']) {

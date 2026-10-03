@@ -15,14 +15,25 @@ case "${1:-}" in
     trap 'rm -f "$UNIT_FILE"' EXIT HUP INT TERM
     # Quote paths for systemd, including spaces and literal percent signs.
     node - "$ROOT" "$(id -un)" "$(command -v node)" > "$UNIT_FILE" <<'NODE'
-const fs = require('node:fs');
 const [root, user, executable] = process.argv.slice(2);
 const quote = value => '"' + value.replace(/%/g, '%%').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
-const template = fs.readFileSync(`${root}/departino.service`, 'utf8');
-process.stdout.write(template
-  .replace(/^User=.*$/m, () => `User=${user}`)
-  .replace(/^WorkingDirectory=.*$/m, () => `WorkingDirectory=${quote(root)}`)
-  .replace(/^ExecStart=.*$/m, () => `ExecStart=${quote(executable)} ${quote(`${root}/server.js`)}`));
+process.stdout.write(`[Unit]
+Description=Departino (independent departure board)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${user}
+WorkingDirectory=${quote(root)}
+ExecStart=${quote(executable)} ${quote(`${root}/server.js`)}
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+`);
 NODE
     sudo install -m 644 "$UNIT_FILE" "/etc/systemd/system/$UNIT"
     sudo systemctl daemon-reload

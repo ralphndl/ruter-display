@@ -28,7 +28,7 @@ async function installer(t) {
   await fs.writeFile(path.join(bin, 'npm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   await fs.writeFile(path.join(checkout, 'config.json'), '{"personal":"unchanged"}');
   const mock = await fs.readFile(path.join(__dirname, 'fixtures/systemd-command.cjs'), 'utf8');
-  for (const name of ['sudo', 'systemctl']) {
+  for (const name of ['sudo', 'systemctl', 'systemd-analyze']) {
     await fs.writeFile(path.join(bin, name), '#!/usr/bin/env node\n' + mock, { mode: 0o755 });
   }
   const state = path.join(dir, 'state.json');
@@ -53,13 +53,33 @@ test('fresh installation, uninstall guard and repeated removal use Departino', a
   assert.equal(fixture.run('check-uninstalled').status, 1);
   const state = await fixture.read();
   assert.equal(state.units['departino.service'].active, true);
-  assert.ok(state.units['departino.service'].content.includes(`WorkingDirectory="${fixture.checkout.replace(/%/g, '%%')}"`));
+  assert.ok(state.units['departino.service'].content.includes(`WorkingDirectory=${fixture.checkout.replace(/%/g, '%%')}\n`));
   assert.equal(await fs.readFile(path.join(fixture.checkout, 'config.json'), 'utf8'), '{"personal":"unchanged"}');
   assert.equal(fixture.run('install').status, 0);
   assert.equal(fixture.run('uninstall').status, 0);
   assert.deepEqual((await fixture.read()).units, {});
   assert.equal(fixture.run('uninstall').status, 0);
   assert.equal(fixture.run('check-uninstalled').status, 0);
+});
+
+test('generated unit passes the real systemd parser', { skip: process.platform !== 'linux' }, async t => {
+  const fixture = await installer(t);
+  assert.equal(fixture.run('install').status, 0);
+  const state = await fixture.read();
+  const unit = path.join(fixture.checkout, 'departino.service');
+  await fs.writeFile(unit, state.units['departino.service'].content);
+  const result = spawnSync('/usr/bin/systemd-analyze', ['verify', unit], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('invalid generated units do not change installed services', async t => {
+  const fixture = await installer(t);
+  await fixture.seed({ 'departino.service': { active: true, directory: fixture.checkout } });
+  await fs.writeFile(path.join(fixture.checkout, '../bin/systemd-analyze'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  assert.notEqual(fixture.run('install').status, 0);
+  const state = await fixture.read();
+  assert.equal(state.units['departino.service'].active, true);
+  assert.deepEqual(state.commands, []);
 });
 
 test('make service stops supervised instances before local cleanup, including the old service name', { skip: !hasMake }, async t => {

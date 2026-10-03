@@ -10,7 +10,9 @@ if (command === 'sudo') [command, ...args] = args;
 state.commands.push([command, ...args]);
 let status = 0;
 const unit = args.at(-1);
-if (command === 'install') {
+if (command === 'systemd-analyze') {
+  if (args[0] !== 'verify') throw new Error('Unexpected verification');
+} else if (command === 'install') {
   if (args[0] !== '-m' || args[1] !== '644' || args[3] !== '/etc/systemd/system/departino.service') {
     throw new Error('Unexpected install arguments');
   }

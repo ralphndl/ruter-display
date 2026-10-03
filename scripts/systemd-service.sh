@@ -11,8 +11,9 @@ unit_exists() {
 
 case "${1:-}" in
   install)
-    UNIT_FILE=$(mktemp)
-    trap 'rm -f "$UNIT_FILE"' EXIT HUP INT TERM
+    UNIT_DIR=$(mktemp -d)
+    UNIT_FILE="$UNIT_DIR/$UNIT"
+    trap 'rm -f "$UNIT_FILE"; rmdir "$UNIT_DIR"' EXIT HUP INT TERM
     # Quote paths for systemd, including spaces and literal percent signs.
     node - "$ROOT" "$(id -un)" "$(command -v node)" > "$UNIT_FILE" <<'NODE'
 const [root, user, executable] = process.argv.slice(2);
@@ -25,7 +26,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=${user}
-WorkingDirectory=${quote(root)}
+WorkingDirectory=${root.replace(/%/g, '%%')}
 ExecStart=${quote(executable)} ${quote(`${root}/server.js`)}
 Restart=always
 RestartSec=10
@@ -35,7 +36,12 @@ Environment=NODE_ENV=production
 WantedBy=multi-user.target
 `);
 NODE
+    # Use systemd's parser before changing any installed/running service.
+    systemd-analyze verify "$UNIT_FILE"
+    sudo install -m 644 "$UNIT_FILE" "/etc/systemd/system/$UNIT"
+    sudo systemctl daemon-reload
     # Stop through systemd first, including activating/restarting services.
+    # Reload the validated unit first so a previously invalid unit is repairable.
     # Killing their Node process directly would trigger Restart=always.
     if unit_exists "$UNIT"; then
       sudo systemctl stop "$UNIT"
@@ -46,9 +52,6 @@ NODE
       sudo systemctl disable --now ruter-display.service
     fi
     node "$ROOT/scripts/local-server.js" stop
-    sudo install -m 644 "$UNIT_FILE" "/etc/systemd/system/$UNIT"
-    sudo systemctl daemon-reload
-
     sudo systemctl enable "$UNIT"
     sudo systemctl restart "$UNIT"
     echo "$UNIT installed and started."

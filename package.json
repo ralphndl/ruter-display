@@ -1,7 +1,7 @@
 {
-  "name": "ruter-display",
+  "name": "oslo-departures",
   "version": "1.0.0",
-  "description": "",
+  "description": "Independent departure board for Oslo, using open data from Entur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

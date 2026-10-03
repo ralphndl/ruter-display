@@ -6,9 +6,8 @@ yarn.lock
 config.json
 
 # Environment
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # IDE
 .vscode/
@@ -16,7 +15,6 @@ config.json
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Build output
 dist/

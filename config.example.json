@@ -1,9 +1,14 @@
 {
+  "server": {
+    "port": 3030,
+    "clientName": "oslo-departures"
+  },
   "stops": [
     { "id": "58366", "modes": ["tram", "metro"] },
     { "id": "58382", "modes": ["tram"], "minMinutes": 3 }
   ],
   "count": 7,
+  "size": "normal",
   "theme": {
     "default": "auto",
     "nightStart": "19:00",

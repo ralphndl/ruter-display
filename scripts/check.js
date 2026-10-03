@@ -1,7 +1,8 @@
 // Smoke test for a running server: loads the config and fetches departures for every stop.
-// Usage: node scripts/check.js [baseUrl]   (default http://localhost:$PORT or :3030)
+// Usage: node scripts/check.js [baseUrl] (defaults to the configured server port)
 
-const base = process.argv[2] || `http://localhost:${process.env.PORT || 3030}`;
+const { loadServerConfig } = require('../lib/config');
+const base = process.argv[2] || `http://localhost:${loadServerConfig().port}`;
 
 (async () => {
   let config;

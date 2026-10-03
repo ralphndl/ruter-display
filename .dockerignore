@@ -1,0 +1,15 @@
+# Allow only application files into the build context. Personal config, .env,
+# Git history, dependencies, logs and machine metadata stay on the host.
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!server.js
+!config.example.json
+!LICENSE
+!lib/
+!lib/**
+!public/
+!public/**
+!scripts/
+!scripts/check.js

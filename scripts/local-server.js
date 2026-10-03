@@ -72,7 +72,9 @@ const same = (a, b) => a && b && a.pid === b.pid && a.started === b.started && a
 function current(info) { return processes().find(candidate => same(info, candidate)); }
 function ownServers() { return processes().filter(isServer); }
 function assertNotSupervised(servers) {
-  if (servers.some(info => info.base && /(?:^|\0)INVOCATION_ID=/.test(read(`${info.base}/environ`)))) {
+  // INVOCATION_ID can be inherited from a login session; it does not prove
+  // that systemd supervises this server. Check its actual service cgroup.
+  if (servers.some(info => info.base && /\/(?:departino|ruter-display)\.service(?:\/|$)/m.test(read(`${info.base}/cgroup`)))) {
     throw new Error('This checkout is running under systemd. Use make unservice to stop that service.');
   }
 }

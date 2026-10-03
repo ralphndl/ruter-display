@@ -35,6 +35,17 @@ Environment=NODE_ENV=production
 WantedBy=multi-user.target
 `);
 NODE
+    # Stop through systemd first, including activating/restarting services.
+    # Killing their Node process directly would trigger Restart=always.
+    if unit_exists "$UNIT"; then
+      sudo systemctl stop "$UNIT"
+    fi
+    # Retire the old name only when it belongs to this exact checkout.
+    if unit_exists ruter-display.service &&
+      [ "$(systemctl show ruter-display.service --property=WorkingDirectory --value)" = "$ROOT" ]; then
+      sudo systemctl disable --now ruter-display.service
+    fi
+    node "$ROOT/scripts/local-server.js" stop
     sudo install -m 644 "$UNIT_FILE" "/etc/systemd/system/$UNIT"
     sudo systemctl daemon-reload
 

@@ -26,7 +26,13 @@ if (command === 'install') {
   const value = state.units[unit];
   switch (args[0]) {
     case 'cat': status = value ? 0 : 1; break;
+    case 'show': {
+      const shown = state.units[args[1]];
+      if (shown) process.stdout.write(shown.directory || ''); else status = 1;
+      break;
+    }
     case 'daemon-reload': break;
+    case 'stop': if (value) value.active = false; else status = 1; break;
     case 'enable': if (value) value.enabled = true; else status = 1; break;
     case 'disable':
       if (value) { value.enabled = false; if (args.includes('--now')) value.active = false; }

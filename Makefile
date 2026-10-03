@@ -38,7 +38,6 @@ check: ## Test the running server for every configured stop
 
 ##@ systemd service (Raspberry Pi / Linux)
 service: install ## Install + start the systemd service (Raspberry Pi)
-	@if ! systemctl is-active --quiet departino.service 2>/dev/null; then $(MAKE) stop; fi
 	@sh scripts/systemd-service.sh install
 
 unservice: ## Stop, disable and remove the systemd service

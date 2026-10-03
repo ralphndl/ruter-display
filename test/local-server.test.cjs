@@ -39,7 +39,8 @@ async function fixture(t, { child = false, stubborn = false } = {}) {
       res.end(JSON.stringify({ app: 'departino', pid: process.pid, revision }));
     }).listen(port);
   `);
-  const env = { ...process.env, PORT: String(port), NODE_OPTIONS: '' };
+  // Login sessions may pass this variable even without supervising this server.
+  const env = { ...process.env, PORT: String(port), NODE_OPTIONS: '', INVOCATION_ID: 'inherited-login-session' };
   const run = async action => {
     try { return { code: 0, ...await exec(process.execPath, ['scripts/local-server.js', action], { cwd: dir, env, timeout: 25000 }) }; }
     catch (error) { return { code: error.code, stdout: error.stdout, stderr: error.stderr }; }

@@ -6,6 +6,12 @@ services:
       NODE_OPTIONS: --require=/app/test/fixtures/entur.cjs
     volumes:
       - type: bind
+        source: ./Makefile
+        target: /app/Makefile
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
         source: ./config.example.json
         target: /app/config.json
         read_only: true

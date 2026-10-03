@@ -20,6 +20,8 @@ endorsed by Ruter or Entur.**
 - Walking-time filters, adjustable text size and light / dark / automatic themes.
 - Provider-specific timezones, line colours and source attribution, including PNGs.
 
+![Departino running on an Android tablet](media/sample-android.png)
+
 ## Pick your screen
 
 - **Pi + tablet:** run the server on a Raspberry Pi and open its address on any
